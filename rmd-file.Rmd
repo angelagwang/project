@@ -1,0 +1,119 @@
+---
+title: "rmd-file"
+author: "Angela Wang"
+date: "February 27, 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(knitr)
+```
+
+```{r}
+data <- read_csv("data/pone.0232197.s002.csv")
+
+data$bwgt_hosp <- as.numeric(data$bwgt_hosp)
+data$birthlengthcm <- as.numeric(data$birthlengthcm)
+```
+
+```{r}
+#rename levels of treatment variable
+data <- data %>%
+  mutate(group = case_when(
+    group == "MG-T" ~ "Supplement: Pre-Conception to Term",
+    group == "PC-T" ~ "Supplement: Mid-Gestation to Term",
+    group == "RPC" ~ "Routine Care")) 
+
+#rename levels of low birth weight variable
+data <- data%>%
+  mutate(lbw_hosp = case_when(
+    lbw_hosp == 1 ~ "Yes",
+    TRUE ~ "No"))
+
+#rename levels of small gestational age babies
+data <- data%>%
+  mutate(sga_wgt = case_when(
+    sga_wgt == 1 ~ "Yes",
+    TRUE ~ "No"))
+```
+
+```{r}
+#count number of individuals in each treatment group
+data %>%
+  group_by(group) %>%
+  count(group)
+
+#count number of low birth weight babies by treatment group
+data %>%
+  group_by(group) %>%
+  count(lbw_hosp)
+
+#count number of small gestational age babies by treatment group
+data %>%
+  group_by(group) %>%
+  count(sga_wgt)
+```
+
+```{r}
+#count number of na in birth weight
+data %>%
+  group_by(group) %>%
+  count(is.na(bwgt_hosp))
+
+#count number of na in maternal bmi
+data %>%
+  group_by(group) %>%
+  count(is.na(maternal_bmi_prepreg))
+
+#count number of na in birth length  -- too many not going to look at this variable
+data %>%
+  group_by(group) %>%
+  count(is.na(birthlengthcm))
+
+#count number of na in gestational weight gain  -- too many not going to look at this variable
+data %>%
+  count(is.na(gestationalweightgainkg))
+```
+
+
+
+```{r}
+#calculate average birth weight by treatment group
+bwgt_mean <- aggregate(x= data["bwgt_hosp"], by = list(data$group), FUN = mean, na.rm = TRUE)
+print(bwgt_mean)
+bwgt_mean_plac = bwgt_mean$bwgt_hosp[1]
+
+#impute 2 missing birth weight values for routine care group with mean birth weight
+data <- data %>%
+  mutate(bwgt_hosp = case_when(
+    is.na(bwgt_hosp) == TRUE ~ bwgt_mean_plac,
+    TRUE ~ bwgt_hosp))
+```
+
+```{r}
+#calculate average maternal bmi  by treatment group
+bmi_mean <- aggregate(x= data["maternal_bmi_prepreg"], by = list(data$group), FUN = mean, na.rm = TRUE)
+print(bmi_mean)
+bmi_mean_plac = bmi_mean$maternal_bmi_prepreg[1]
+bmi_mean_mid = bmi_mean$maternal_bmi_prepreg[2]
+bmi_mean_full = bmi_mean$maternal_bmi_prepreg[3]
+
+#impute missing bmi values for each group with corresponding average bmi 
+data <- data %>%
+  mutate(maternal_bmi_prepreg = case_when(
+    is.na(maternal_bmi_prepreg) == TRUE & group == "Routine Care" ~ bmi_mean_plac,
+    is.na(maternal_bmi_prepreg) == TRUE & group == "Supplement: Mid-Gestation to Term" ~ bmi_mean_mid,
+    is.na(maternal_bmi_prepreg) == TRUE & group == "Supplement: Pre-Conception to Term" ~ bmi_mean_full,
+    TRUE ~ maternal_bmi_prepreg))
+```
+
+
+
+
