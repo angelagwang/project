@@ -14,7 +14,7 @@ library(dplyr)
 library(tidyverse)
 library(tidyr)
 library(knitr)
-library(gghalves)
+library(gtable)
 ```
 
 ```{r}
@@ -25,6 +25,8 @@ data$birthlengthcm <- as.numeric(data$birthlengthcm)
 ```
 
 ```{r}
+#data cleaning
+
 #rename levels of treatment variable
 data <- data %>%
   mutate(group = case_when(
@@ -32,48 +34,52 @@ data <- data %>%
     group == "PC-T" ~ "Supplement: Mid Pregnancy to Birth",
     group == "RPC" ~ "Placebo")) 
 
-#rename levels of low birth weight variable
+#fill nas in low birth weight variable as no
 data <- data%>%
   mutate(lbw_hosp = case_when(
     lbw_hosp == 1 ~ "Yes",
     TRUE ~ "No"))
 
-#rename levels of small gestational age babies
+#fill nas in small gestational age variable as no
 data <- data%>%
   mutate(sga_wgt = case_when(
     sga_wgt == 1 ~ "Yes",
     TRUE ~ "No"))
 
+##fill nas in preterm variable as no 
 data <- data%>%
   mutate(preterm = case_when(
     preterm == 1 ~ "Yes",
     TRUE ~ "No"))
+
+#fill nas in workasfarmer variable as no
+data <- data %>%
+  mutate(workasfarmer = case_when(
+    workasfarmer == 1 ~ "Yes",
+    TRUE ~ "No"))
+
+#fill nas in education variable as middle school
+data <- data %>%
+  mutate(education = case_when(
+    is.na(education) == TRUE ~ "middle school",
+    TRUE ~ education))
 ```
 
 #Introduction
-A nutrient-rich diet is important for a healthy and safe pregnancy and a healthy newborn since babies receive most of their nutrients from their mothers’ diet (Nga, 2020). Low birth weight and premature babies have been linked to poor maternal nutrition. In many low-income countries, it is difficult for mothers to obtain a nutrient-rich diet during pregnancy. In high-income countries, like the United States, health care providers will often recommend certain nutritious foods and special supplements to promote a baby’s growth and development. This situation is not the case for low-income countries as many mothers do not have access to healthy foods and practically no access to supplements. In this study, we are interested in investigating the effect of a nutrient supplement on birth outcomes. Our two research questions of interest:
+A nutrient-rich diet is important for a healthy and safe pregnancy and a healthy newborn since babies receive most of their nutrients from their mothers’ diet (Nga, 2020). Low birth weight and premature babies have been linked to poor maternal nutrition. In many low-income countries, it is difficult for mothers to obtain a nutrient-rich diet during pregnancy. In high-income countries, like the United States, health care providers will often recommend certain nutritious foods and special supplements to promote a baby’s growth and development. This situation is not the case for low-income countries as many mothers do not have access to healthy foods and practically no access to supplements. In this study, we are interested in investigating the effect of a nutrient supplement on birth outcomes. Our two research questions of interest are:
 
 + Is there a difference between birth weight of infants born to mothers who received routine prenatal care and those who received a supplement?
     * Between those who received a supplement, does the duration of supplement intake (full term or half term) affect the birth weight of infants?
 + Is there a difference between maternal gestational weight gain (defined as the amount of weight gained from conception to the birth of the infant) in mothers who received routine prenatal care and those who received a supplement?
 
 ## About the Data
-Our dataset comes from a randomized, controlled trial published in PLoS ONE and funded by the Nestle Research Foundation. The trial was interested in determining if a food supplement from local animal-sourced foods and vegetables given during pregnancy would improve birth outcomes. 460 rural Vietnamese women between the ages of 18 to 30 were enrolled in the study and assigned to 3 different groups: receiving supplement from pre-conception to birth, receiving the supplement from mid-gestation to birth, and no supplement/routine prenatal care. Only 317 of the original 460 women completed the study as the others either moved from the area or did not give birth during the data collection period. Data was collected on the mother’s demographic and biological characteristics before and during pregnancy, mother’s vitamin intake during pregnancy, and the baby’s biological and physical characteristics at birth. Based on the original study’s findings, we hypothesize that a nutrient supplement will not have an effect on birth weight or on maternal gestational weight gain. The study did not analyze the difference in infant birth weights between mothers who received the different treatments, but we hypothesize that there will be no difference. 
+Our data set comes from a randomized, controlled trial published in PLoS ONE and funded by the Nestle Research Foundation. The trial was interested in determining if a food supplement, created from local animal-sourced foods and vegetables, would improve birth outcomes if given to mothers during pregnancy. 460 rural Vietnamese women between the ages of 18 to 30 were enrolled in the study. 317 of the original 460 women completed the study, and the others either moved from the area or did not give birth during the data collection period. The women were assigned to 3 different groups: receiving supplement from pre-conception to birth (110 women), receiving the supplement from mid-gestation to birth (101 women), and no supplement/routine prenatal care (106 women). Data was collected on the mother’s demographic and biological characteristics before and during pregnancy, the mother’s vitamin intake during pregnancy, and the baby’s biological and physical characteristics at birth. Based on the original study’s findings, we hypothesize that a nutrient supplement will not have an effect on birth weight or on maternal gestational weight gain. The study did not analyze the difference in infant birth weights between mothers who received the different durations of the supplement, but we hypothesize that there will be no difference. We will be analyzing these differences using multiple linear regression and hypothesis testing.
 
-### Exploratory Data Analysis
-The two response variables we are interested in examining are the birth weight of infants in grams and the mother's gestational weight gain in kilograms. The overall average birth weight was 3006.3 g. Among mothers who received the supplement full term, the average birth weight was 2991.8 g. Among mothers who received the supplement half term and mothers in the placebo group (receiving routine maternal care), average birth weight was 2983.168 g and 3043.3 g respectively.  
-
-
-```{r}
+```{r include = FALSE}
 #count number of individuals in each treatment group
 data %>%
   group_by(group) %>%
   count(group)
-
-#count number of small gestational age babies by treatment group
-data %>%
-  group_by(group) %>%
-  count(sga_wgt)
 ```
 
 ```{r, include = FALSE}
@@ -82,16 +88,14 @@ data %>%
   group_by(group) %>%
   count(is.na(birthlengthcm))
 
-#count number of na in gestational weight gain  -- about half which is a lot, maybe try to use EM
+#count number of na in gestational weight gain  -- about half which is a lot, maybe try to use EM to fill
 data %>%
   count(is.na(gestationalweightgainkg))
 ```
 
 ```{r}
 #calculate average birth weight by treatment group
-mean(data$bwgt_hosp)
-bwgt_mean <- aggregate(x= data["bwgt_hosp"], by = list(data$group), FUN = mean, na.rm = TRUE)
-print(bwgt_mean)
+bwgt_mean <- aggregate(x= data["bwgt_hosp"], by = list(data$group), FUN = mean, na.rm = TRUE) 
 bwgt_mean_plac = bwgt_mean$bwgt_hosp[1]
 
 #impute 2 missing birth weight values for routine care group with mean birth weight
@@ -104,7 +108,7 @@ data <- data %>%
 ```{r}
 #calculate average maternal bmi  by treatment group
 bmi_mean <- aggregate(x= data["maternal_bmi_prepreg"], by = list(data$group), FUN = mean, na.rm = TRUE)
-bmi_mean_plac = bmi_mean$maternal_bmi_prepreg[1]
+bmi_mean_plac =  bmi_mean$maternal_bmi_prepreg[1]
 bmi_mean_mid = bmi_mean$maternal_bmi_prepreg[2]
 bmi_mean_full = bmi_mean$maternal_bmi_prepreg[3]
 
@@ -129,31 +133,100 @@ datatm <- data %>%
   filter(group != "Placebo")
 ```
 
-```{r}
+### Exploratory Data Analysis
+The two response variables we are interested in examining are the birth weight of infants in grams and the mother's gestational weight gain in kilograms. The overall average birth weight was 3006.3 g. Among mothers who received the supplement full term, the average birth weight was 2991.8 g. Among mothers who received the supplement half term and mothers in the placebo group (receiving routine maternal care), average birth weight was 2983.2 g and 3043.3 g respectively. Due to the similar distribution and average birth weight between the placebo group and treatment group as well as between the supplement groups, there may be evidence that supplement intake and length of intake do not have an effect on infant birth weight.  
+
+```{r fig.height = 4, fig.width = 6}
 ggplot(data = data, aes(x = treatment_group, y = bwgt_hosp, color = treatment_group)) +
   geom_boxplot() +
-  labs(title = "Similar Infant Birth Weights Between Treatment Groups", x = "Treatment Group", y = "Infant Birth Weight (g)", color = "Treatment Group")
+  labs(title = "Distribution of Birth Weights Similar between \nPlacebo and Treatment Group", x = "Treatment Group", y = "Infant Birth Weight (g)", color = "Treatment Group")
+
+
+ggplot(data = datatm, aes(x = group, y = bwgt_hosp, color = group)) +
+  geom_boxplot(width = .35) +
+  scale_x_discrete(expand  = c(.22,0)) +
+  labs(title = "Distribution of Birth Weights Similar between \nSupplement Groups", x = "Supplement Group", y = "Infant Birth Weight (g)", color = "Supplement Group")
+
+```
+
+The overall average gestational weight gain was 7.4 kg. Among mothers who received the supplement full term, the average weight gain was 7.5 kg. Among mothers who received the supplement half term and mothers in the placebo group (receiving routine maternal care), average weight gain was 7.6 kg and 7.3 kg respectively. These differences may suggest that the supplement has a positive effect on maternal gestational weight gain, especially when only taking it from mid-pregnancy to birth compared to taking it the whole pregnancy. It is important to note that about half the observations for gestational weight gain were missing, so we omitted these observations. 
+
+```{r fig.height = 4, fig.width = 6}
+ggplot(data = data, aes(x = treatment_group, y = gestationalweightgainkg, color = treatment_group)) +
+  geom_boxplot() +
+  labs(title = "Mothers in the Treatment Group had Higher Gestational \nWeight Gain", x = "Treatment Group", y = "Gestaional Weight Gain (kg)", color = "Treatment Group")
+
+ggplot(data = datatm, aes(x = group, y = gestationalweightgainkg, color = group)) +
+  geom_boxplot(width = .35) +
+  scale_x_discrete(expand  = c(.25,0)) +
+  labs(title = "Mothers Receving the Supplement Starting at Mid-Pregnancy \nhad Higher Gestational Weight Gain", x = "Supplement Group", y = "Gestational Weight Gain (kg)", color = "Supplement Group")
+```
+
+```{r include = FALSE}
+ggplot(data= data, aes(x = bwgt_hosp)) +
+  geom_histogram(bins = 20) 
 
 ggplot(data = data, aes(fill = preterm, x = treatment_group)) +
-  geom_bar(position = "fill") +
-  labs(title = "Similar Infant Birth Weights Between Treatment Groups", x = "Treatment Group", y = "Infant Birth Weight (g)", color = "Treatment Group")
+  geom_bar(position = "fill") 
 
 ggplot(data = data, aes(fill = sga_wgt, x = treatment_group)) +
-  geom_bar(position = "fill") +
-  labs(title = "Similar Infant Birth Weights Between Treatment Groups", x = "Treatment Group", y = "Infant Birth Weight (g)", color = "Treatment Group")
+  geom_bar(position = "fill") 
 
-ggplot(data= data, aes(x = bwgt_hosp)) +
-  geom_histogram(bins = 20)
+ggplot(data = data, aes(x = preterm, y = bwgt_hosp)) +
+  geom_boxplot() 
+
+ggplot(data = data, aes(x = sga_wgt, y = bwgt_hosp)) +
+  geom_boxplot() 
 
 ggplot(data = data, aes(x = education, y = bwgt_hosp)) +
-  geom_boxplot() +
-  labs(title = "Similar Infant Birth Weights Between Treatment Groups", x = "Treatment Group", y = "Infant Birth Weight (g)", color = "Treatment Group")
+  geom_boxplot() 
+
+ggplot(data = data, aes(x = infantgender, y = bwgt_hosp)) +
+  geom_boxplot()
+
+ggplot(data = data, aes(x = workasfarmer, y = bwgt_hosp)) +
+  geom_boxplot() 
+
+ggplot(data = data, aes(x = maternal_age_years, y = bwgt_hosp)) +
+  geom_point() 
+```
+
+```{r include = FALSE}
+ggplot(data = data, aes(x = preterm, y = gestationalweightgainkg)) +
+  geom_boxplot() 
+
+ggplot(data = data, aes(x = sga_wgt, y = gestationalweightgainkg)) +
+  geom_boxplot()
+
+ggplot(data= data, aes(x = gestationalweightgainkg)) +
+  geom_histogram(bins = 20) 
+
+ggplot(data = data, aes(x = education, y = gestationalweightgainkg)) +
+  geom_boxplot() 
+
+ggplot(data = data, aes(x = workasfarmer, y = gestationalweightgainkg)) +
+  geom_boxplot() 
+
+ggplot(data = data, aes(x = maternal_age_years, y = gestationalweightgainkg)) +
+  geom_point() 
+
+ggplot(data = data, aes(x = maternal_hgt_prepreg_cm, y = gestationalweightgainkg)) +
+  geom_point() +
+  geom_smooth()
+
+ggplot(data = data, aes(x = maternal_bmi_prepreg, y = gestationalweightgainkg)) +
+  geom_point() +
+  geom_smooth()
 ```
 
 #Appendix
 
-## Description of Variables Used
+## Section 1. Description of Variables Used
 + **Variables of Interest**
-  + `bwgt_hosp`: birth weight of infants in grams
-References: Nga, Hoang T., et al. “Effect of a Nutrient-Rich, Food-Based Supplement given to Rural Vietnamese Mothers Prior to and/or during Pregnancy on Birth Outcomes: A Randomized Controlled Trial.” PLOS ONE, vol. 15, no. 5, Public Library of Science, May 2020, p. e0232197. PLoS Journals, doi:10.1371/journal.pone.0232197.
+    + `bwgt_hosp`: birth weight of infant in grams
+    + `gestationalweigthgainkg`: gestational weight gain of mother in kilograms
 + **Explanatory Variables**
+
+
+## References
+Nga, Hoang T., et al. “Effect of a Nutrient-Rich, Food-Based Supplement given to Rural Vietnamese Mothers Prior to and/or during Pregnancy on Birth Outcomes: A Randomized Controlled Trial.” PLOS ONE, vol. 15, no. 5, Public Library of Science, May 2020, p. e0232197. PLoS Journals, doi:10.1371/journal.pone.0232197.
