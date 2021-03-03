@@ -122,6 +122,22 @@ data <- data %>%
 ```
 
 ```{r}
+#calculate gestational age by treatment group
+ga_mean <- aggregate(x= data["gestationalage_weeks"], by = list(data$group), FUN = mean, na.rm = TRUE)
+ga_mean_plac =  ga_mean$gestationalage_weeks[1]
+ga_mean_mid = ga_mean$gestationalage_weeks[3]
+ga_mean_full = ga_mean$gestationalage_weeks[2]
+
+#impute missing gestationl age values for each group with corresponding average gestational age 
+data <- data %>%
+  mutate(gestationalage_weeks = case_when(
+    is.na(gestationalage_weeks) == TRUE & group == "Placebo" ~ ga_mean_plac,
+    is.na(gestationalage_weeks) == TRUE & group == "Supplement: Mid-Pregnancy to Term" ~ ga_mean_mid,
+    is.na(gestationalage_weeks) == TRUE & group == "Supplement: Full Pregnancy" ~ ga_mean_full,
+    TRUE ~ gestationalage_weeks))
+```
+
+```{r}
 #new variable that combines both supplement groups into one 
 data <- data %>%
   mutate(treatment_group = case_when(
@@ -162,6 +178,8 @@ ggplot(data = datatm, aes(x = group, y = gestationalweightgainkg, color = group)
   labs(title = "Mothers Receving the Supplement Starting at Mid-Pregnancy \nhad Higher Gestational Weight Gain", x = "Supplement Group", y = "Gestational Weight Gain (kg)", color = "Supplement Group")
 ```
 
+More information on the explanatory variables used in our analysis can be found in Appendix *Section 1*. In general, missing data in the numeric variables were imputed using the average value for that variable by each treatment group. Missing data in the categorical variables were imputed using the most frequent level in the variable since these variables are often skewed.
+
 ```{r include = FALSE}
 ggplot(data= data, aes(x = bwgt_hosp)) +
   geom_histogram(bins = 20) 
@@ -188,6 +206,9 @@ ggplot(data = data, aes(x = workasfarmer, y = bwgt_hosp)) +
   geom_boxplot() 
 
 ggplot(data = data, aes(x = maternal_age_years, y = bwgt_hosp)) +
+  geom_point()
+
+ggplot(data = data, aes(x = gestationalage_weeks, y = bwgt_hosp)) +
   geom_point() 
 ```
 
@@ -223,10 +244,20 @@ ggplot(data = data, aes(x = maternal_bmi_prepreg, y = gestationalweightgainkg)) 
 
 ## Section 1. Description of Variables Used
 + **Variables of Interest**
-    + `bwgt_hosp`: birth weight of infant in grams
-    + `gestationalweigthgainkg`: gestational weight gain of mother in kilograms
+    + `bwgt_hosp`: birth weight of infant (in grams)
+    + `gestationalweigthgainkg`: gestational weight gain of mother (in kilograms)
 + **Explanatory Variables**
-
+    + `treatment_group`: new variable created that indicates treatment group with levels: routine prenatal care and supplement 
+    + `preterm`: binary variable with 1 = infant was born premature and 0 = infant was not born premature
+    + `sga_wgt`: binary variable with 1 = infant is small for gestational age and 0 = infant is normal for gestational age
+    + `gestationalage_weeks`: gestational age of infant (in weeks)
+    + `gender`: binary variable with 1 = female and 0 = male
+    + `education`: highest education completed of mother with levels: elementary school, high school, middle school, occupational or above
+    + `workasfarmer`: binary variable with 1 = mother works as farmer and 0 = mother does not work as farmer
+    + `maternal_age_years`: age of mother
+    + `maternal_hgt_prepreg_cm`: height of mother before pregnancy (in cm)
+    + `maternal_bmi_prepreg`: bmi of mother before pregnancy
+    
 
 ## References
 Nga, Hoang T., et al. “Effect of a Nutrient-Rich, Food-Based Supplement given to Rural Vietnamese Mothers Prior to and/or during Pregnancy on Birth Outcomes: A Randomized Controlled Trial.” PLOS ONE, vol. 15, no. 5, Public Library of Science, May 2020, p. e0232197. PLoS Journals, doi:10.1371/journal.pone.0232197.
